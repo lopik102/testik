@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>CubeCity: Zombie Survival</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #c{display:block;width:100%;height:100%;touch-action:none}
+
+  .hud{position:fixed;pointer-events:none;color:#fff;
+    text-shadow:0 2px 6px #000,0 0 2px #000;font-weight:600}
+
+  /* ---- верх слева ---- */
+  #topLeft{top:calc(env(safe-area-inset-top) + 10px);left:12px;font-size:13px}
+  #hpWrap{width:160px;height:14px;background:#00000088;border:2px solid #fff6;
+    border-radius:8px;overflow:hidden;margin-bottom:6px}
+  #hpBar{height:100%;width:100%;background:linear-gradient(90deg,#ff3b3b,#ff8a3b);
+    transition:width .15s}
+  #weaponLine{font-size:14px;margin-bottom:2px}
+  #ammoLine{font-size:12px;opacity:.9}
+
+  /* ---- верх справа ---- */
+  #topRight{top:calc(env(safe-area-inset-top) + 10px);right:12px;font-size:13px;
+    text-align:right;line-height:1.5}
+
+  /* ---- босс ---- */
+  #bossWrap{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;
+    transform:translateX(-50%);width:min(70vw,340px);display:none;
+    pointer-events:none;text-align:center;color:#fff;text-shadow:0 2px 6px #000}
+  #bossName{font-size:12px;letter-spacing:1px;margin-bottom:3px;color:#ff9d9d}
+  #bossBarOut{height:12px;background:#00000099;border:2px solid #fff8;border-radius:8px;overflow:hidden}
+  #bossBar{height:100%;width:100%;background:linear-gradient(90deg,#8b0000,#ff2d2d)}
+
+  /* ---- джойстик ---- */
+  #stick{position:fixed;width:110px;height:110px;border-radius:50%;
+    border:2px solid #ffffff44;background:#ffffff11;display:none;
+    pointer-events:none;transform:translate(-50%,-50%)}
+  #stickDot{position:absolute;left:50%;top:50%;width:46px;height:46px;
+    margin:-23px 0 0 -23px;border-radius:50%;background:#ffffff55}
+
+  /* ---- кнопки ---- */
+  .btn{position:fixed;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:#ffffff22;border:2px solid #ffffff55;color:#fff;font-size:22px;
+    text-shadow:0 2px 4px #000;backdrop-filter:blur(4px);pointer-events:auto;
+    transition:transform .06s,background .1s}
+  .btn:active{transform:scale(.92);background:#ffffff44}
+  #btnAttack{right:24px;bottom:calc(env(safe-area-inset-bottom) + 110px);width:88px;height:88px;font-size:30px;
+    background:#ff3b3b44;border-color:#ff8888aa}
+  #btnInteract{right:130px;bottom:calc(env(safe-area-inset-bottom) + 60px);width:66px;height:66px;font-size:22px;
+    background:#3bff8844;border-color:#88ffaaaa}
+  #btnSwitch{right:24px;bottom:calc(env(safe-area-inset-bottom) + 30px);width:60px;height:60px;font-size:20px}
+  #btnCraft{left:20px;bottom:calc(env(safe-area-inset-bottom) + 30px);width:60px;height:60px;font-size:20px}
+
+  /* ---- крафт-панель ---- */
+  #craftPanel{position:fixed;inset:0;background:#000000cc;display:none;
+    flex-direction:column;padding:20px;gap:10px;overflow-y:auto;color:#fff;pointer-events:auto;z-index:20}
+  #craftPanel h2{font-size:18px;margin-bottom:4px}
+  .recipe{background:#ffffff12;border:1px solid #ffffff33;border-radius:12px;
+    padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .recipe .info{font-size:13px}
+  .recipe .info b{font-size:14px}
+  .recipe .info small{opacity:.7;display:block;margin-top:2px}
+  .recipe button{background:#3bff88;color:#052;border:none;border-radius:8px;
+    padding:9px 14px;font-weight:700;font-size:13px;flex-shrink:0}
+  .recipe button:disabled{background:#555;color:#999}
+  #closeCraft{background:#ff3b3b;color:#fff;border:none;border-radius:10px;
+    padding:14px;font-size:15px;font-weight:700;margin-top:auto}
+
+  /* ---- тост ---- */
+  #toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#000000cc;color:#fff;padding:10px 18px;border-radius:10px;
+    font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30}
+
+  #connect{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
+    font-size:11px;color:#fff6;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="topLeft" class="hud">
+  <div id="hpWrap"><div id="hpBar"></div></div>
+  <div id="weaponLine">✊ Кулаки</div>
+  <div id="ammoLine">Патроны: 30</div>
+</div>
+
+<div id="topRight" class="hud">
+  <div id="resLine">🪵 0 &nbsp; ⚙️ 0 &nbsp; 🧵 0</div>
+  <div id="killLine">☠️ Убито: 0</div>
+</div>
+
+<div id="bossWrap">
+  <div id="bossName">ЗАРАЖЁННЫЙ ВОЛК</div>
+  <div id="bossBarOut"><div id="bossBar"></div></div>
+</div>
+
+<div id="stick"><div id="stickDot"></div></div>
+
+<div id="btnAttack" class="btn">⚔️</div>
+<div id="btnInteract" class="btn">📦</div>
+<div id="btnSwitch" class="btn">🔄</div>
+<div id="btnCraft" class="btn">🔨</div>
+
+<div id="craftPanel">
+  <h2>🔨 Крафт</h2>
+  <div id="recipeList"></div>
+  <button id="closeCraft">Закрыть</button>
+</div>
+
+<div id="toast"></div>
+<div id="connect">single-player</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================
+   БАЗА
+   ===================================================================== */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:false, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9ab8d0);
+scene.fog = new THREE.Fog(0x9ab8d0, 45, 115);
+
+const camera = new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 0.1, 260);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.HemisphereLight(0xcfe2ff, 0x3a3a3a, 1.15));
+const sun = new THREE.DirectionalLight(0xfff1d4, 1.25);
+sun.position.set(40, 70, 25);
+scene.add(sun);
+
+/* =====================================================================
+   ТЕКСТУРЫ (процедурные пиксельные)
+   ===================================================================== */
+function pxTexture(hex, variance = 18, size = 16) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  const r0 = (hex >> 16) & 255, g0 = (hex >> 8) & 255, b0 = hex & 255;
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const v = (Math.random() - 0.5) * variance * 2;
+    img.data[i*4]   = Math.max(0, Math.min(255, r0 + v));
+    img.data[i*4+1] = Math.max(0, Math.min(255, g0 + v));
+    img.data[i*4+2] = Math.max(0, Math.min(255, b0 + v));
+    img.data[i*4+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const TEX = {
+  asphalt:  pxTexture(0x4a4a4f, 14),
+  sidewalk: pxTexture(0x8b8b86, 12),
+  wall1:    pxTexture(0xa89880, 16),
+  wall2:    pxTexture(0x7f8fa0, 16),
+  wall3:    pxTexture(0x9a6f5a, 16),
+  wood:     pxTexture(0x8a5a2b, 18),
+  skin:     pxTexture(0x7ab87a, 16),
+  skinRun:  pxTexture(0x8fbf5a, 16),
+  skinTank: pxTexture(0x4f7a4f, 18),
+  fur:      pxTexture(0x4a4a3a, 20),
+};
+
+/* =====================================================================
+   ГОРОД
+   ===================================================================== */
+const WORLD = 130;
+const colliders = []; // {minX,maxX,minZ,maxZ}
+
+// земля
+const groundMat = new THREE.MeshLambertMaterial({map: TEX.asphalt});
+TEX.asphalt.repeat.set(40, 40);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(WORLD*2, WORLD*2), groundMat);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+// тротуары-пятачки под домами
+function addSidewalk(x, z, w, d) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.15, d),
+    new THREE.MeshLambertMaterial({map: TEX.sidewalk})
+  );
+  m.position.set(x, 0.075, z);
+  scene.add(m);
+}
+
+const wallMats = [TEX.wall1, TEX.wall2, TEX.wall3].map(t =>
+  new THREE.MeshLambertMaterial({map: t}));
+
+function createBuilding(x, z, w, h, d) {
+  const mat = wallMats[(Math.random()*wallMats.length)|0];
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, h/2, z);
+  scene.add(mesh);
+
+  // окна-полоски (простые тёмные кубики)
+  const winMat = new THREE.MeshLambertMaterial({color: 0x243040});
+  const floors = Math.max(1, Math.floor(h / 3));
+  for (let f = 1; f <= floors; f++) {
+    const y = f * 3 - 0.8;
+    if (y > h - 1) break;
+    const wm = new THREE.Mesh(new THREE.BoxGeometry(w*0.85, 0.9, 0.06), winMat);
+    wm.position.set(x, y, z + d/2 + 0.04);
+    scene.add(wm);
+    const wm2 = wm.clone(); wm2.position.z = z - d/2 - 0.04; scene.add(wm2);
+  }
+
+  colliders.push({
+    minX: x - w/2, maxX: x + w/2,
+    minZ: z - d/2, maxZ: z + d/2
+  });
+  addSidewalk(x, z, w + 2, d + 2);
+}
+
+// генерация кварталов
+for (let bx = -3; bx <= 3; bx++) {
+  for (let bz = -3; bz <= 3; bz++) {
+    const cx = bx * 24, cz = bz * 24;
+    if (Math.hypot(cx, cz) < 16) continue; // свободная зона спавна
+    const count = 1 + (Math.random() < 0.55 ? 1 : 0);
+    for (let i = 0; i < count; i++) {
+      const w = 6 + Math.random()*4;
+      const d = 6 + Math.random()*4;
+      const h = 6 + Math.random()*16;
+      createBuilding(
+        cx + (Math.random()-0.5)*9,
+        cz + (Math.random()-0.5)*9,
+        w, h, d
+      );
+    }
+  }
+}
+
+/* =====================================================================
+   МОДЕЛИ
+   ===================================================================== */
+function limb(w, h, d, mat) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  geo.translate(0, -h/2, 0); // вращение вокруг верхней точки
+  return new THREE.Mesh(geo, mat);
+}
+
+function makeHumanoid(skinTex, shirtColor, pantsColor) {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshLambertMaterial({map: skinTex});
+  const shirt = new THREE.MeshLambertMaterial({color: shirtColor});
+  const pants = new THREE.MeshLambertMaterial({color: pantsColor});
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.75, 0.36), shirt);
+  torso.position.y = 1.28;
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.46), skin);
+  head.position.y = 1.88;
+
+  const armL = limb(0.18, 0.7, 0.18, skin); armL.position.set(-0.40, 1.60, 0);
+  const armR = limb(0.18, 0.7, 0.18, skin); armR.position.set( 0.40, 1.60, 0);
+  const legL = limb(0.22, 0.90, 0.22, pants); legL.position.set(-0.16, 0.90, 0);
+  const legR = limb(0.22, 0.90, 0.22, pants); legR.position.set( 0.16, 0.90, 0);
+
+  g.add(torso, head, armL, armR, legL, legR);
+  g.userData = {armL, armR, legL, legR, head, torso};
+  return g;
+}
+
+function makeWolfModel() {
+  const g = new THREE.Group();
+  const fur  = new THREE.MeshLambertMaterial({map: TEX.fur});
+  const dark = new THREE.MeshLambertMaterial({color: 0x2a2a20});
+  const eyeMat = new THREE.MeshBasicMaterial({color: 0xff2b2b});
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.15, 2.7), fur);
+  body.position.y = 1.85; g.add(body);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 1.05), fur);
+  head.position.set(0, 2.35, 1.75); g.add(head);
+
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.65), dark);
+  snout.position.set(0, 2.18, 2.42); g.add(snout);
+
+  // глаза
+  const eL = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.06), eyeMat);
+  eL.position.set(-0.25, 2.50, 2.29); g.add(eL);
+  const eR = eL.clone(); eR.position.x = 0.25; g.add(eR);
+
+  // уши
+  const earGeo = new THREE.BoxGeometry(0.24, 0.42, 0.14);
+  const earL = new THREE.Mesh(earGeo, fur); earL.position.set(-0.33, 2.92, 1.60); g.add(earL);
+  const earR = earL.clone(); earR.position.x = 0.33; g.add(earR);
+
+  // лапы
+  const legs = [];
+  const pos = [[-0.62, 0.95], [0.62, 0.95], [-0.62, -0.95], [0.62, -0.95]];
+  for (const [px, pz] of pos) {
+    const l = limb(0.36, 1.3, 0.36, fur);
+    l.position.set(px, 1.3, pz);
+    g.add(l); legs.push(l);
+  }
+
+  // хвост
+  const tail = limb(0.25, 0.9, 0.25, dark);
+  tail.position.set(0, 2.0, -1.35);
+  tail.rotation.x = -1.1;
+  g.add(tail);
+
+  g.userData = {legs, head, tail};
+  return g;
+}
+
+/* =====================================================================
+   ИГРОК
+   ===================================================================== */
+const player = {
+  group: makeHumanoid(TEX.wood, 0x3d6ec4, 0x2b2b3a),
+  pos: new THREE.Vector3(0, 0, 0),
+  hp: 100, maxHp: 100,
+  facing: 0,
+  weapon: 'fists',
+  ammo: 30,
+  attackCd: 0,
+  swingT: 0,
+  walkPhase: 0,
+  alive: true,
+};
+player.group.traverse(o => { if (o.isMesh) o.castShadow = false; });
+scene.add(player.group);
+
+const owned = new Set(['fists']);
+
+const inv = { wood: 0, metal: 0, cloth: 0 };
+
+const WEAPONS = {
+  fists:   {name:'Кулаки',         dmg: 6,  range: 2.0, cd: 0.55, type:'melee', icon:'✊'},
+  sword:   {name:'Деревянный меч', dmg: 16, range: 2.7, cd: 0.45, type:'melee', icon:'🗡️'},
+  pistol:  {name:'Пистолет',       dmg: 18, range: 35,  cd: 0.32, type:'ranged', ammo:1, icon:'🔫'},
+  shotgun: {name:'Дробовик',       dmg: 12, range: 18,  cd: 0.95, type:'ranged', ammo:2, pellets:4, icon:'💥'},
+};
+
+/* =====================================================================
+   ЗОМБИ
+   ===================================================================== */
+const ZOMBIE_TYPES = {
+  walker: { hp: 40,  speed: 1.3, dmg: 8,  scale: 1.0, tex: TEX.skin,     shirt: 0x556b55, pants: 0x33301f, cd: 1.1 },
+  runner: { hp: 26,  speed: 3.3, dmg: 6,  scale: 0.92,tex: TEX.skinRun,  shirt: 0xa03030, pants: 0x2a1a1a, cd: 0.8 },
+  tank:   { hp: 160, speed: 0.95,dmg: 22, scale: 1.45,tex: TEX.skinTank, shirt: 0x304a30, pants: 0x1a241a, cd: 1.6 },
+};
+
+const zombies = [];
+const MAX_ZOMBIES = 14;
+let kills = 0;
+let bossSpawned = false;
+let boss = null;
+
+function spawnZombie(type) {
+  const t = ZOMBIE_TYPES[type];
+  const group = makeHumanoid(t.tex, t.shirt, t.pants);
+  group.scale.setScalar(t.scale);
+
+  // найти свободную точку в радиусе 22–45 от игрока
+  let x = 0, z = 0, ok = false;
+  for (let i = 0; i < 25; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 22 + Math.random() * 23;
+    x = player.pos.x + Math.cos(a) * r;
+    z = player.pos.z + Math.sin(a) * r;
+    if (Math.abs(x) > WORLD - 5 || Math.abs(z) > WORLD - 5) continue;
+    let inside = false;
+    for (const c of colliders) {
+      if (x > c.minX-1 && x < c.maxX+1 && z > c.minZ-1 && z < c.maxZ+1) { inside = true; break; }
+    }
+    if (!inside) { ok = true; break; }
+  }
+  if (!ok) return;
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+
+  zombies.push({
+    group, type, hp: t.hp, maxHp: t.hp,
+    speed: t.speed, damage: t.dmg, attackCd: t.cd,
+    attackTimer: 0, walkPhase: Math.random()*10,
+    hitT: 0, dead: false, isBoss: false
+  });
+}
+
+function spawnBoss() {
+  const g = makeWolfModel();
+  const a = Math.random() * Math.PI * 2;
+  g.position.set(player.pos.x + Math.cos(a)*26, 0, player.pos.z + Math.sin(a)*26);
+  scene.add(g);
+
+  boss = {
+    group: g, type: 'boss', hp: 900, maxHp: 900,
+    speed: 3.0, damage: 26, attackCd: 1.3,
+    attackTimer: 0, walkPhase: 0, hitT: 0,
+    dead: false, isBoss: true
+  };
+  zombies.push(boss);
+  bossSpawned = true;
+  document.getElementById('bossWrap').style.display = 'block';
+  toast('⚠️ ЗАРАЖЁННЫЙ ВОЛК!');
+}
+
+/* =====================================================================
+   СУНДУКИ
+   ===================================================================== */
+const chests = [];
+const chestMat   = new THREE.MeshLambertMaterial({map: TEX.wood});
+const chestEmpty = new THREE.MeshLambertMaterial({color: 0x3a2a1a});
+
+function spawnChests(n) {
+  for (let i = 0; i < n; i++) {
+    let x, z, ok = false;
+    for (let k = 0; k < 30; k++) {
+      x = (Math.random() - 0.5) * (WORLD * 1.6);
+      z = (Math.random() - 0.5) * (WORLD * 1.6);
+      if (Math.hypot(x, z) < 8) continue;
+      let inside = false;
+      for (const c of colliders) {
+        if (x > c.minX-1.2 && x < c.maxX+1.2 && z > c.minZ-1.2 && z < c.maxZ+1.2) { inside = true; break; }
+      }
+      if (!inside) { ok = true; break; }
+    }
+    if (!ok) continue;
+
+    const g = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.8), chestMat);
+    base.position.y = 0.35;
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.25, 0.85), chestMat);
+    lid.position.y = 0.82;
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.1),
+      new THREE.MeshLambertMaterial({color: 0xffcc33}));
+    lock.position.set(0, 0.55, 0.42);
+    g.add(base, lid, lock);
+    g.position.set(x, 0, z);
+    g.rotation.y = Math.random() * Math.PI;
+    scene.add(g);
+
+    chests.push({ group: g, x, z, empty: false, respawn: 0, lid });
+  }
+}
+spawnChests(16);
+
+function openChest(chest) {
+  if (chest.empty) return;
+  chest.empty = true;
+  chest.respawn = 45;
+  chest.lid.rotation.x = -1.1;
+  chest.lid.position.z = -0.35;
+  chest.lid.position.y = 0.95;
+
+  const loot = {
+    wood:  Math.floor(Math.random()*4) + 1,
+    metal: Math.floor(Math.random()*3) + 1,
+    cloth: Math.floor(Math.random()*2) + (Math.random() < 0.5 ? 1 : 0),
+  };
+  inv.wood += loot.wood;
+  inv.metal += loot.metal;
+  inv.cloth += loot.cloth;
+  const ammo = Math.floor(Math.random()*8) + 4;
+  player.ammo += ammo;
+
+  toast(`📦 +${loot.wood}🪵 +${loot.metal}⚙️ +${loot.cloth}🧵 +${ammo} патр.`);
+  updateHud();
+}
+
+/* =====================================================================
+   УПРАВЛЕНИЕ
+   ===================================================================== */
+const cam = { yaw: 0, dist: 8.5, height: 5.2 };
+const move = { active: false, id: null, sx: 0, sy: 0, dx: 0, dy: 0 };
+const look = { id: null, px: 0, py: 0 };
+
+const stickEl = document.getElementById('stick');
+const stickDot = document.getElementById('stickDot');
+
+function onTouchStart(e) {
+  for (const t of e.changedTouches) {
+    const leftHalf = t.clientX < innerWidth * 0.5;
+    if (leftHalf && !move.active) {
+      move.active = true;
+      move.id = t.identifier;
+      move.sx = t.clientX; move.sy = t.clientY;
+      move.dx = 0; move.dy = 0;
+      stickEl.style.display = 'block';
+      stickEl.style.left = t.clientX + 'px';
+      stickEl.style.top = t.clientY + 'px';
+      stickDot.style.transform = 'translate(0,0)';
+    } else if (!leftHalf && look.id === null) {
+      look.id = t.identifier;
+      look.px = t.clientX; look.py = t.clientY;
+    }
+  }
+  e.preventDefault();
+}
+
+function onTouchMove(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === move.id) {
+      let dx = t.clientX - move.sx;
+      let dy = t.clientY - move.sy;
+      const len = Math.hypot(dx, dy);
+      const max = 55;
+      if (len > max) { dx = dx/len*max; dy = dy/len*max; }
+      move.dx = dx / max;
+      move.dy = dy / max;
+      stickDot.style.transform = `translate(${dx}px,${dy}px)`;
+    }
+    if (t.identifier === look.id) {
+      cam.yaw -= (t.clientX - look.px) * 0.006;
+      look.px = t.clientX;
+      look.py = t.clientY;
+    }
+  }
+  e.preventDefault();
+}
+
+function onTouchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === move.id) {
+      move.active = false; move.id = null;
+      move.dx = move.dy = 0;
+      stickEl.style.display = 'none';
+    }
+    if (t.identifier === look.id) look.id = null;
+  }
+}
+
+canvas.addEventListener('touchstart', onTouchStart, {passive:false});
+canvas.addEventListener('touchmove',  onTouchMove,  {passive:false});
+canvas.addEventListener('touchend',   onTouchEnd,   {passive:false});
+canvas.addEventListener('touchcancel',onTouchEnd,   {passive:false});
+
+// кнопки
+function bindBtn(id, fn) {
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', e => { e.preventDefault(); fn(); }, {passive:false});
+  el.addEventListener('click', e => { e.preventDefault(); fn(); });
+}
+bindBtn('btnAttack', doAttack);
+bindBtn('btnInteract', doInteract);
+bindBtn('btnSwitch', switchWeapon);
+bindBtn('btnCraft', () => { renderCraft(); document.getElementById('craftPanel').style.display = 'flex'; });
+
+document.getElementById('closeCraft').addEventListener('click', () => {
+  document.getElementById('craftPanel').style.display = 'none';
+});
+
+// клавиатура для теста на ПК
+addEventListener('keydown', e => {
+  if (e.code === 'Space') doAttack();
+  if (e.code === 'KeyE') doInteract();
+  if (e.code === 'KeyQ') switchWeapon();
+  if (e.code === 'KeyC') { renderCraft(); document.getElementById('craftPanel').style.display = 'flex'; }
+});
+
+/* =====================================================================
+   АТАКА
+   ===================================================================== */
+const tracers = [];
+
+function addTracer(from, to) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const len = dir.length();
+  const geo = new THREE.BoxGeometry(0.05, 0.05, len);
+  const mat = new THREE.MeshBasicMaterial({color: 0xffee88, transparent:true, opacity:0.9});
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(from).add(to).multiplyScalar(0.5);
+  mesh.lookAt(to);
+  scene.add(mesh);
+  tracers.push({mesh, t: 0.07});
+}
+
+function damageZombie(z, dmg) {
+  z.hp -= dmg;
+  z.hitT = 0.12;
+  if (z.hp <= 0 && !z.dead) {
+    z.dead = true;
+    scene.remove(z.group);
+    const idx = zombies.indexOf(z);
+    if (idx >= 0) zombies.splice(idx, 1);
+
+    if (z.isBoss) {
+      boss = null;
+      document.getElementById('bossWrap').style.display = 'none';
+      inv.metal += 15; inv.wood += 10; inv.cloth += 8;
+      player.ammo += 40;
+      toast('🐺 Босс побеждён! +много лута');
+    } else {
+      kills++;
+      const roll = Math.random();
+      if (roll < 0.7) inv.wood += 1;
+      if (roll > 0.35) inv.metal += 1;
+      if (roll > 0.8) inv.cloth += 1;
+      player.ammo += 1;
+      if (!bossSpawned && kills >= 12) spawnBoss();
+    }
+    updateHud();
+  }
+}
+
+function doAttack() {
+  if (!player.alive || player.attackCd > 0) return;
+  const w = WEAPONS[player.weapon];
+
+  if (w.type === 'ranged' && player.ammo < w.ammo) {
+    toast('Нет патронов!');
+    return;
+  }
+  if (w.type === 'ranged') player.ammo -= w.ammo;
+  player.attackCd = w.cd;
+  player.swingT = 0.22;
+
+  const fx = Math.sin(player.facing);
+  const fz = Math.cos(player.facing);
+  const origin = new THREE.Vector3(player.pos.x + fx*0.5, 1.3, player.pos.z + fz*0.5);
+
+  if (w.type === 'melee') {
+    let hitAny = false;
+    for (const z of [...zombies]) {
+      const dx = z.group.position.x - player.pos.x;
+      const dz = z.group.position.z - player.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > w.range + 0.6) continue;
+      const dot = (dx/d)*fx + (dz/d)*fz;
+      if (dot < 0.25) continue;
+      damageZombie(z, w.dmg);
+      hitAny = true;
+    }
+    if (hitAny) sfxHit();
+  } else {
+    // ranged: автонаведение по ближайшим
+    const targets = zombies
+      .map(z => {
+        const dx = z.group.position.x - player.pos.x;
+        const dz = z.group.position.z - player.pos.z;
+        const d = Math.hypot(dx, dz);
+        const dot = d > 0.01 ? (dx/d)*fx + (dz/d)*fz : 1;
+        return { z, d, dot };
+      })
+      .filter(o => o.d < w.range && o.dot > 0.25)
+      .sort((a, b) => a.d - b.d);
+
+    const pellets = w.pellets || 1;
+    for (let i = 0; i < pellets; i++) {
+      const t = targets[i];
+      const to = t
+        ? new THREE.Vector3(t.z.group.position.x, 1.3, t.z.group.position.z)
+        : new THREE.Vector3(origin.x + fx*w.range, 1.3, origin.z + fz*w.range);
+      addTracer(origin, to);
+      if (t) damageZombie(t.z, w.dmg);
+    }
+  }
+  updateHud();
+}
+
+function switchWeapon() {
+  const list = [...owned];
+  const i = list.indexOf(player.weapon);
+  player.weapon = list[(i + 1) % list.length];
+  updateHud();
+  toast(WEAPONS[player.weapon].icon + ' ' + WEAPONS[player.weapon].name);
+}
+
+/* =====================================================================
+   ВЗАИМОДЕЙСТВИЕ
+   ===================================================================== */
+function doInteract() {
+  let best = null, bestD = 3.0;
+  for (const ch of chests) {
+    if (ch.empty) continue;
+    const d = Math.hypot(ch.x - player.pos.x, ch.z - player.pos.z);
+    if (d < bestD) { bestD = d; best = ch; }
+  }
+  if (best) openChest(best);
+  else toast('Рядом ничего нет');
+}
+
+/* =====================================================================
+   КРАФТ
+   ===================================================================== */
+const RECIPES = [
+  { id:'sword',   name:'Деревянный меч', cost:{wood:3},          desc:'урон 16, ближний бой' },
+  { id:'pistol',  name:'Пистолет',       cost:{metal:5,wood:2},  desc:'урон 18, патроны 1' },
+  { id:'shotgun', name:'Дробовик',       cost:{metal:8,wood:4},  desc:'урон 12×4, патроны 2' },
+  { id:'ammo',    name:'Патроны ×10',    cost:{metal:2},         desc:'+10 патронов' },
+  { id:'medkit',  name:'Аптечка',        cost:{cloth:3,wood:1},  desc:'+50 HP' },
+];
+
+function canAfford(cost) {
+  return Object.entries(cost).every(([k, v]) => inv[k] >= v);
+}
+function pay(cost) {
+  for (const [k, v] of Object.entries(cost)) inv[k] -= v;
+}
+
+function renderCraft() {
+  const list = document.getElementById('recipeList');
+  list.innerHTML = '';
+  for (const r of RECIPES) {
+    const el = document.createElement('div');
+    el.className = 'recipe';
+
+    const costStr = Object.entries(r.cost)
+      .map(([k, v]) => `${v}${k === 'wood' ? '🪵' : k === 'metal' ? '⚙️' : '🧵'}`)
+      .join(' + ');
+
+    const ownedAlready = (r.id === 'sword' || r.id === 'pistol' || r.id === 'shotgun')
+      && owned.has(r.id);
+
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.innerHTML = `<b>${r.name}</b><small>${r.desc} • ${costStr}</small>`;
+
+    const btn = document.createElement('button');
+    btn.textContent = ownedAlready ? '✓ есть' : 'Создать';
+    btn.disabled = ownedAlready || !canAfford(r.cost);
+    btn.addEventListener('click', () => craft(r));
+
+    el.appendChild(info);
+    el.appendChild(btn);
+    list.appendChild(el);
+  }
+}
+
+function craft(r) {
+  if (!canAfford(r.cost)) return;
+  if ((r.id === 'sword' || r.id === 'pistol' || r.id === 'shotgun') && owned.has(r.id)) return;
+  pay(r.cost);
+
+  if (r.id === 'ammo') {
+    player.ammo += 10;
+    toast('+10 патронов');
+  } else if (r.id === 'medkit') {
+    player.hp = Math.min(player.maxHp, player.hp + 50);
+    toast('+50 HP');
+  } else {
+    owned.add(r.id);
+    player.weapon = r.id;
+    toast('Создано: ' + r.name);
+  }
+  updateHud();
+  renderCraft();
+}
+
+/* =====================================================================
+   HUD
+   ===================================================================== */
+function updateHud() {
+  document.getElementById('hpBar').style.width =
+    Math.max(0, player.hp / player.maxHp * 100) + '%';
+
+  const w = WEAPONS[player.weapon];
+  document.getElementById('weaponLine').textContent = w.icon + ' ' + w.name;
+  document.getElementById('ammoLine').textContent =
+    w.type === 'ranged' ? `Патроны: ${player.ammo}` : 'Ближний бой';
+
+  document.getElementById('resLine').innerHTML =
+    `🪵 ${inv.wood} &nbsp; ⚙️ ${inv.metal} &nbsp; 🧵 ${inv.cloth}`;
+  document.getElementById('killLine').textContent = `☠️ Убито: ${kills}`;
+
+  if (boss) {
+    document.getElementById('bossBar').style.width =
+      Math.max(0, boss.hp / boss.maxHp * 100) + '%';
+  }
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 1400);
+}
+
+function damagePlayer(d) {
+  if (!player.alive) return;
+  player.hp -= d;
+  if (player.hp <= 0) {
+    player.hp = 0;
+    player.alive = false;
+    toast('💀 Ты погиб. Перезагрузка...');
+    setTimeout(() => location.reload(), 2200);
+  }
+  updateHud();
+}
+
+// простой «звук» через WebAudio
+let actx = null;
+function sfxHit() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = 'square';
+    o.frequency.value = 180;
+    g.gain.value = 0.05;
+    o.connect(g).connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.08);
+    o.stop(actx.currentTime + 0.1);
+  } catch (e) {}
+}
+
+/* =====================================================================
+   ФИЗИКА / КОЛЛИЗИИ
+   ===================================================================== */
+function resolveCollision(pos, radius) {
+  for (const c of colliders) {
+    const minX = c.minX - radius, maxX = c.maxX + radius;
+    const minZ = c.minZ - radius, maxZ = c.maxZ + radius;
+    if (pos.x > minX && pos.x < maxX && pos.z > minZ && pos.z < maxZ) {
+      const dl = pos.x - minX, dr = maxX - pos.x;
+      const dt = pos.z - minZ, db = maxZ - pos.z;
+      const m = Math.min(dl, dr, dt, db);
+      if (m === dl) pos.x = minX;
+      else if (m === dr) pos.x = maxX;
+      else if (m === dt) pos.z = minZ;
+      else pos.z = maxZ;
+    }
+  }
+  pos.x = Math.max(-WORLD + 3, Math.min(WORLD - 3, pos.x));
+  pos.z = Math.max(-WORLD + 3, Math.min(WORLD - 3, pos.z));
+}
+
+/* =====================================================================
+   MULTIPLAYER (клиент)
+   ===================================================================== */
+const MP = {
+  ws: null,
+  id: null,
+  others: new Map(),
+  sendTimer: 0,
+};
+
+function connectMP(url) {
+  if (!url) return;
+  try {
+    MP.ws = new WebSocket(url);
+  } catch (e) { return; }
+
+  MP.ws.onopen = () => {
+    document.getElementById('connect').textContent = 'online';
+    toast('Подключено к серверу');
+  };
+  MP.ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.t === 'init') { MP.id = m.id; return; }
+    if (m.t === 'p') {
+      let o = MP.others.get(m.id);
+      if (!o) {
+        const g = makeHumanoid(TEX.wood, 0xe06060, 0x402020);
+        scene.add(g);
+        o = { group: g, tx: m.x, tz: m.z, ry: m.ry, walk: 0 };
+        MP.others.set(m.id, o);
+      }
+      o.tx = m.x; o.tz = m.z; o.ry = m.ry;
+      return;
+    }
+    if (m.t === 'leave') {
+      const o = MP.others.get(m.id);
+      if (o) { scene.remove(o.group); MP.others.delete(m.id); }
+    }
+  };
+  MP.ws.onclose = () => {
+    document.getElementById('connect').textContent = 'offline';
+    MP.others.forEach(o => scene.remove(o.group));
+    MP.others.clear();
+  };
+}
+
+// Впиши сюда адрес своего сервера, например:
+// connectMP('ws://192.168.0.10:3000');
+connectMP(''); // по умолчанию оффлайн
+
+/* =====================================================================
+   ИГРОВОЙ ЦИКЛ
+   ===================================================================== */
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector3();
+
+function updatePlayer(dt) {
+  // направление движения относительно камеры
+  const fx = -Math.sin(cam.yaw);
+  const fz = -Math.cos(cam.yaw);
+  const rx = -fz;
+  const rz =  fx;
+
+  let mx = 0, mz = 0;
+  if (move.active) {
+    mx = fx * (-move.dy) + rx * move.dx;
+    mz = fz * (-move.dy) + rz * move.dx;
+  }
+
+  const len = Math.hypot(mx, mz);
+  if (len > 0.05) {
+    mx /= len; mz /= len;
+    const speed = 5.2;
+    player.pos.x += mx * speed * dt;
+    player.pos.z += mz * speed * dt;
+    resolveCollision(player.pos, 0.55);
+
+    const targetFacing = Math.atan2(mx, mz);
+    let diff = targetFacing - player.facing;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    player.facing += diff * Math.min(1, dt * 14);
+
+    player.walkPhase += dt * 11;
+  } else {
+    player.walkPhase += dt * 2;
+  }
+
+  player.group.position.copy(player.pos);
+  player.group.rotation.y = player.facing;
+
+  // анимация ходьбы
+  const u = player.group.userData;
+  const sw = Math.sin(player.walkPhase) * (len > 0.05 ? 0.7 : 0.08);
+  u.legL.rotation.x = sw;
+  u.legR.rotation.x = -sw;
+  u.armL.rotation.x = -sw * 0.8;
+  u.armR.rotation.x = sw * 0.8;
+
+  // анимация удара
+  if (player.swingT > 0) {
+    player.swingT -= dt;
+    const p = 1 - player.swingT / 0.22;
+    u.armR.rotation.x = -Math.sin(p * Math.PI) * 2.2;
+  }
+  if (player.attackCd > 0) player.attackCd -= dt;
+
+  // камера
+  const cx = player.pos.x + Math.sin(cam.yaw) * cam.dist;
+  const cz = player.pos.z + Math.cos(cam.yaw) * cam.dist;
+  const cy = cam.height;
+  camera.position.lerp(tmpV.set(cx, cy, cz), Math.min(1, dt * 10));
+  camera.lookAt(player.pos.x, 1.4, player.pos.z);
+}
+
+function updateZombies(dt) {
+  // спавн
+  if (zombies.length < MAX_ZOMBIES && Math.random() < dt * 0.9) {
+    const r = Math.random();
+    const type = r < 0.15 ? 'tank' : r < 0.55 ? 'runner' : 'walker';
+    spawnZombie(type);
+  }
+
+  for (const z of [...zombies]) {
+    const dx = player.pos.x - z.group.position.x;
+    const dz = player.pos.z - z.group.position.z;
+    const d = Math.hypot(dx, dz) || 0.0001;
+
+    const attackRange = z.isBoss ? 3.2 : 1.6;
+
+    if (d > attackRange) {
+      const sp = z.speed * dt;
+      z.group.position.x += (dx/d) * sp;
+      z.group.position.z += (dz/d) * sp;
+      z.walkPhase += dt * (z.isBoss ? 6 : 9);
+    } else {
+      z.attackTimer -= dt;
+      if (z.attackTimer <= 0) {
+        z.attackTimer = z.attackCd;
+        damagePlayer(z.damage);
+        sfxHit();
+      }
+      z.walkPhase += dt * 2;
+    }
+
+    // поворот к игроку
+    const targetRot = Math.atan2(dx, dz);
+    let diff = targetRot - z.group.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    z.group.rotation.y += diff * Math.min(1, dt * 6);
+
+    // коллизии
+    resolveCollision(z.group.position, z.isBoss ? 1.1 : 0.42);
+
+    // анимация
+    const u = z.group.userData;
+    if (z.isBoss) {
+      const sw = Math.sin(z.walkPhase) * 0.55;
+      u.legs[0].rotation.x =  sw;
+      u.legs[1].rotation.x = -sw;
+      u.legs[2].rotation.x = -sw;
+      u.legs[3].rotation.x =  sw;
+      u.tail.rotation.z = Math.sin(z.walkPhase * 0.8) * 0.35;
+      u.head.rotation.x = Math.sin(z.walkPhase * 0.5) * 0.08;
+    } else {
+      const sw = Math.sin(z.walkPhase) * 0.65;
+      u.legL.rotation.x = sw;
+      u.legR.rotation.x = -sw;
+      u.armL.rotation.x = -Math.PI * 0.55 + Math.sin(z.walkPhase) * 0.15;
+      u.armR.rotation.x = -Math.PI * 0.55 - Math.sin(z.walkPhase) * 0.15;
+    }
+
+    // тряска при попадании
+    if (z.hitT > 0) {
+      z.hitT -= dt;
+      z.group.scale.setScalar((z.isBoss ? 1 : ZOMBIE_TYPES[z.type].scale) * (1 + z.hitT * 0.8));
+    } else {
+      z.group.scale.setScalar(z.isBoss ? 1 : ZOMBIE_TYPES[z.type].scale);
+    }
+  }
+}
+
+function updateChests(dt) {
+  for (const ch of chests) {
+    if (ch.empty) {
+      ch.respawn -= dt;
+      if (ch.respawn <= 0) {
+        ch.empty = false;
+        ch.lid.rotation.x = 0;
+        ch.lid.position.z = 0;
+        ch.lid.position.y = 0.82;
+      }
+    }
+  }
+}
+
+function updateTracers(dt) {
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    const t = tracers[i];
+    t.t -= dt;
+    t.mesh.material.opacity = Math.max(0, t.t / 0.07);
+    if (t.t <= 0) {
+      scene.remove(t.mesh);
+      t.mesh.geometry.dispose();
+      t.mesh.material.dispose();
+      tracers.splice(i, 1);
+    }
+  }
+}
+
+function updateMultiplayer(dt) {
+  if (!MP.ws || MP.ws.readyState !== 1) return;
+
+  MP.sendTimer -= dt;
+  if (MP.sendTimer <= 0) {
+    MP.sendTimer = 0.066;
+    MP.ws.send(JSON.stringify({
+      t: 'p',
+      x: +player.pos.x.toFixed(2),
+      y: 0,
+      z: +player.pos.z.toFixed(2),
+      ry: +player.facing.toFixed(2),
+      hp: Math.round(player.hp),
+      w: player.weapon
+    }));
+  }
+
+  for (const o of MP.others.values()) {
+    o.group.position.x += (o.tx - o.group.position.x) * Math.min(1, dt * 12);
+    o.group.position.z += (o.tz - o.group.position.z) * Math.min(1, dt * 12);
+    o.group.rotation.y = o.ry;
+    o.walk += dt * 8;
+    const u = o.group.userData;
+    const sw = Math.sin(o.walk) * 0.6;
+    u.legL.rotation.x = sw;
+    u.legR.rotation.x = -sw;
+    u.armL.rotation.x = -sw * 0.7;
+    u.armR.rotation.x = sw * 0.7;
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+
+  if (player.alive) updatePlayer(dt);
+  updateZombies(dt);
+  updateChests(dt);
+  updateTracers(dt);
+  updateMultiplayer(dt);
+
+  renderer.render(scene, camera);
+}
+
+updateHud();
+animate();
+</script>
+</body>
+</html>
